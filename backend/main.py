@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+import importlib
 import os
 import uuid
 import typing
@@ -20,6 +21,7 @@ from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks import (
     transports as tasks_v2_transports,
 )
+from google.protobuf import timestamp_pb2
 
 
 class ItemNdb(ndb.Model):
@@ -86,10 +88,57 @@ _STORAGE_CLIENT = _get_storage_client()
 _FIRESTORE_CLIENT = _get_firestore_client()
 _NDB_CLIENT = ndb.Client()
 _TASK_CLIENT = _get_cloud_tasks_client()
+_TASK_EXEC_HANDLER = "/tasks/exec"
 
 
-def _get_queue_path() -> str:
-    return _TASK_CLIENT.queue_path(_get_project_id(), "us-central1", "default")
+class TaskPayload(pydantic.BaseModel):
+    module: str
+    function: str
+    args: typing.List[typing.Any] = pydantic.Field(default_factory=list)
+    kwargs: typing.Dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+
+
+def _create_task(
+    payload: TaskPayload,
+    deplay: typing.Optional[int] = None,
+) -> str:
+    task = {
+        "app_engine_http_request": {
+            "http_method": tasks_v2.HttpMethod.POST,
+            "relative_uri": _TASK_EXEC_HANDLER,
+            "body": json.dumps(payload.dict()).encode(),
+            "headers": {"Content-type": "application/json"},
+        }
+    }
+    if deplay:
+        utcnow = datetime.datetime.utcnow()
+        delta_seconds = datetime.timedelta(seconds=deplay)
+        schedule = utcnow + delta_seconds
+
+        timestamp = timestamp_pb2.Timestamp()
+        timestamp.FromDatetime(schedule)
+        task["schedule_time"] = timestamp
+
+    parent = _TASK_CLIENT.queue_path(
+        _get_project_id(), "us-central1", "default"
+    )
+
+    response = _TASK_CLIENT.create_task(parent=parent, task=task)
+    return response.name
+
+
+def defer_execution(
+    func,
+    *,
+    deplay_in_secs_: typing.Optional[int] = None,
+    **kwargs,
+) -> str:
+    payload = TaskPayload(
+        module=func.__module__,
+        function=func.__name__,
+        kwargs=kwargs,
+    )
+    return _create_task(payload, deplay=deplay_in_secs_)
 
 
 async def ndb_context():
@@ -135,10 +184,12 @@ def _create_item(item_to_create: ItemCreateSchema) -> ItemDetailSchema:
     item_ndb.put()
 
     # update realtime DB
-    _update_realtime_db(item_ndb.key.id())
+    defer_execution(
+        _update_realtime_db, item_id=item_ndb.key.id(), deplay_in_secs_=10
+    )
 
     # generate a CSV file
-    _generate_csv()
+    defer_execution(_generate_csv, deplay_in_secs_=20)
 
     return ItemDetailSchema.load_from_ndb(item_ndb)
 
@@ -216,26 +267,10 @@ async def gcs_file(bucket_name: str, filename: str):
     return response
 
 
-@app.get("/tasks")
-async def tasks_test():
-    parent = _get_queue_path()
-    task = {
-        "app_engine_http_request": {
-            "http_method": tasks_v2.HttpMethod.POST,
-            "relative_uri": "/tasks/exec",
-            "body": json.dumps({"hi": "from task"}).encode(),
-            "headers": {"Content-type": "application/json"},
-        }
-    }
-    response = _TASK_CLIENT.create_task(parent=parent, task=task)
-    return response.name
-
-
-@app.post("/tasks/exec")
-async def tesks_exec(request: fastapi.Request):
-    print('aqui')
-    data = await request.json()
-    print(data)
+@app.post(_TASK_EXEC_HANDLER, dependencies=[fastapi.Depends(ndb_context)])
+async def tesks_exec(payload: TaskPayload):
+    func = getattr(importlib.import_module(payload.module), payload.function)
+    ret = func(**payload.kwargs)
 
 
 @app.get("/app-env")
