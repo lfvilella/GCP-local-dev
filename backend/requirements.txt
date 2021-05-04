@@ -4,3 +4,4 @@ uvicorn==0.13.4
 google-cloud-firestore==2.0.2
 google-cloud-ndb==1.7.2
 google-cloud-storage==1.35.0
+google-cloud-tasks==2.2.0
