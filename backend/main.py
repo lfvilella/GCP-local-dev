@@ -4,7 +4,9 @@ import io
 import os
 import uuid
 import typing
+import json
 
+import grpc
 import fastapi
 import fastapi.responses
 import pydantic
@@ -14,6 +16,10 @@ from google.auth import credentials
 from google.cloud import storage
 from google.cloud import firestore
 from google.cloud import ndb
+from google.cloud import tasks_v2
+from google.cloud.tasks_v2.services.cloud_tasks import (
+    transports as tasks_v2_transports,
+)
 
 
 class ItemNdb(ndb.Model):
@@ -45,6 +51,10 @@ def _is_prod() -> bool:
     return os.getenv("SERVER_SOFTWARE", "").startswith("Google App Engine/")
 
 
+def _get_project_id() -> str:
+    return os.getenv("GOOGLE_CLOUD_PROJECT", "")
+
+
 def _get_storage_client() -> storage.Client:
     kwargs = {}
     if not _is_prod():
@@ -59,9 +69,27 @@ def _get_firestore_client() -> firestore.Client:
     return firestore.Client(**kwargs)
 
 
+def _get_cloud_tasks_client() -> tasks_v2.CloudTasksClient:
+    kwargs = {}
+    if not _is_prod():
+        channel = grpc.insecure_channel(
+            os.getenv("CLOUD_TASKS_EMULATOR_HOST", "")
+        )
+        kwargs["transport"] = tasks_v2_transports.CloudTasksGrpcTransport(
+            channel=channel
+        )
+
+    return tasks_v2.CloudTasksClient(**kwargs)
+
+
 _STORAGE_CLIENT = _get_storage_client()
 _FIRESTORE_CLIENT = _get_firestore_client()
 _NDB_CLIENT = ndb.Client()
+_TASK_CLIENT = _get_cloud_tasks_client()
+
+
+def _get_queue_path() -> str:
+    return _TASK_CLIENT.queue_path(_get_project_id(), "us-central1", "default")
 
 
 async def ndb_context():
@@ -119,7 +147,7 @@ app = fastapi.FastAPI()
 
 
 @app.get("/")
-def hello():
+async def hello():
     return {"msg": "hello"}
 
 
@@ -129,7 +157,7 @@ def hello():
     status_code=201,
     dependencies=[fastapi.Depends(ndb_context)],
 )
-def item_create(item: ItemCreateSchema):
+async def item_create(item: ItemCreateSchema):
     return _create_item(item)
 
 
@@ -138,7 +166,7 @@ def item_create(item: ItemCreateSchema):
     response_model=ItemDetailSchema,
     dependencies=[fastapi.Depends(ndb_context)],
 )
-def item_detail(item_id: uuid.UUID):
+async def item_detail(item_id: uuid.UUID):
     item_ndb = ItemNdb.get_by_id(str(item_id))
     if not item_ndb:
         raise fastapi.HTTPException(status_code=404, detail="Item not found")
@@ -151,7 +179,7 @@ def item_detail(item_id: uuid.UUID):
     response_model=typing.List[ItemDetailSchema],
     dependencies=[fastapi.Depends(ndb_context)],
 )
-def item_list():
+async def item_list():
     items = []
     for item_ndb in ItemNdb.query().fetch():
         items.append(ItemDetailSchema.load_from_ndb(item_ndb))
@@ -159,8 +187,8 @@ def item_list():
     return items
 
 
-@app.get("/gcp-files", response_model=typing.List[str])
-def gcs_files():
+@app.get("/gcs-files", response_model=typing.List[str])
+async def gcs_files():
     files = []
     for bucket in _STORAGE_CLIENT.list_buckets():
         for blob in _STORAGE_CLIENT.list_blobs(bucket):
@@ -168,8 +196,8 @@ def gcs_files():
     return files
 
 
-@app.get("/gcp-file/{bucket_name}/{filename}")
-def gcs_file(bucket_name: str, filename: str):
+@app.get("/gcs-file/{bucket_name}/{filename}")
+async def gcs_file(bucket_name: str, filename: str):
     bucket = _STORAGE_CLIENT.lookup_bucket(bucket_name)
     if not bucket:
         raise fastapi.HTTPException(status_code=404, detail="csv not found")
@@ -186,6 +214,28 @@ def gcs_file(bucket_name: str, filename: str):
     response.headers["Content-Disposition"] = "attachment; filename=export.csv"
 
     return response
+
+
+@app.get("/tasks")
+async def tasks_test():
+    parent = _get_queue_path()
+    task = {
+        "app_engine_http_request": {
+            "http_method": tasks_v2.HttpMethod.POST,
+            "relative_uri": "/tasks/exec",
+            "body": json.dumps({"hi": "from task"}).encode(),
+            "headers": {"Content-type": "application/json"},
+        }
+    }
+    response = _TASK_CLIENT.create_task(parent=parent, task=task)
+    return response.name
+
+
+@app.post("/tasks/exec")
+async def tesks_exec(request: fastapi.Request):
+    print('aqui')
+    data = await request.json()
+    print(data)
 
 
 @app.get("/app-env")

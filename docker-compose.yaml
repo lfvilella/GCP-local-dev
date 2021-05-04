@@ -20,6 +20,10 @@ services:
       "--host-port=0.0.0.0:8081",
       "--data-dir=/data/db",
     ]
+    networks:
+      localnet:
+        aliases:
+          - "datastore-host"
     
   cloud-storage:
     image: fsouza/fake-gcs-server:v1.24.0
@@ -28,7 +32,11 @@ services:
     volumes:
       - ./docker/data/cloud_storage:/data
       - ./docker/data/cloud_storage:/storage
-
+    networks:
+      localnet:
+        aliases:
+          - "cloud-storage-host"
+ 
   cloud-storage-proxy:
     image: nginx:1.20
     volumes:
@@ -39,7 +47,11 @@ services:
       - cloud-storage
     links:
       - cloud-storage:cloud-storage-host
-
+    networks:
+      localnet:
+        aliases:
+          - "cloud-storage-proxy-host"
+ 
   firebase:
     build:
       dockerfile: firebase.Dockerfile
@@ -62,6 +74,26 @@ services:
       "--import=/data",
       "--export-on-exit=/data",
     ]
+    networks:
+      localnet:
+        aliases:
+          - "firebase-host"
+ 
+  cloud-tasks:
+    image: ghcr.io/aertje/cloud-tasks-emulator:1.0.2
+    ports:
+      - "8123"
+    environment:
+      - APP_ENGINE_EMULATOR_HOST=http://backend-host:8080
+    command: [
+      "-host=0.0.0.0",
+      "-port=8123",
+      "-queue=projects/${GCP_PROJECT:-test}/locations/us-central1/queues/default",
+    ]
+    networks:
+      localnet:
+        aliases:
+          - "cloud-tasks-host"
  
   backend:
     build:
@@ -73,10 +105,7 @@ services:
       - datastore
       - cloud-storage-proxy
       - firebase
-    links:
-      - datastore:datastore-host
-      - cloud-storage-proxy:cloud-storage-host
-      - firebase:firebase-host
+      - cloud-tasks
     ports:
       - "8080:8080"
       - "8000:8000"
@@ -92,8 +121,16 @@ services:
       "--admin_host=0.0.0.0",
       "--admin_port=8000",
       "--enable_console",
+      "--enable_host_checking=False",
       "--env_var=DATASTORE_EMULATOR_HOST=datastore-host:8081",
-      "--env_var=STORAGE_EMULATOR_HOST=http://cloud-storage-host",
-      "--env_var=FIRESTORE_EMULATOR_HOST=firebase-host:9002"
+      "--env_var=STORAGE_EMULATOR_HOST=http://cloud-storage-proxy-host",
+      "--env_var=FIRESTORE_EMULATOR_HOST=firebase-host:9002",
+      "--env_var=CLOUD_TASKS_EMULATOR_HOST=cloud-tasks-host:8123",
     ] 
-
+    networks:
+      localnet:
+        aliases:
+          - "backend-host"
+ 
+networks:
+  localnet:
