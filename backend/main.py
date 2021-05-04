@@ -130,7 +130,7 @@ def _create_task(
 def defer_execution(
     func,
     *,
-    deplay_in_secs_: typing.Optional[int] = None,
+    deplay_in_seconds_: typing.Optional[int] = None,
     **kwargs,
 ) -> str:
     payload = TaskPayload(
@@ -138,7 +138,7 @@ def defer_execution(
         function=func.__name__,
         kwargs=kwargs,
     )
-    return _create_task(payload, deplay=deplay_in_secs_)
+    return _create_task(payload, deplay=deplay_in_seconds_)
 
 
 async def ndb_context():
@@ -185,11 +185,11 @@ def _create_item(item_to_create: ItemCreateSchema) -> ItemDetailSchema:
 
     # update realtime DB
     defer_execution(
-        _update_realtime_db, item_id=item_ndb.key.id(), deplay_in_secs_=10
+        _update_realtime_db, item_id=item_ndb.key.id(), deplay_in_seconds_=10
     )
 
     # generate a CSV file
-    defer_execution(_generate_csv, deplay_in_secs_=20)
+    defer_execution(_generate_csv, deplay_in_seconds_=20)
 
     return ItemDetailSchema.load_from_ndb(item_ndb)
 
