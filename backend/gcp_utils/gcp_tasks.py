@@ -18,7 +18,16 @@ from google.protobuf import timestamp_pb2
 from . import gcp_env
 
 
-TASK_EXEC_HANDLER = "/safe-and-internal-only-access/task/exec"
+TASK_EXEC_HANDLER = "/_internal/safe-and-internal-only-access/task/exec"
+_GCP_TASK_HEADERS = frozenset(
+    [
+        "X-AppEngine-QueueName",
+        "X-AppEngine-TaskName",
+        "X-AppEngine-TaskRetryCount",
+        "X-AppEngine-TaskExecutionCount",
+        "X-AppEngine-TaskETA",
+    ]
+)
 
 
 def _get_cloud_tasks_client() -> tasks_v2.CloudTasksClient:
@@ -39,7 +48,8 @@ _client = _get_cloud_tasks_client()
 
 class Location(enum.Enum):
     US_CENTRAL1 = "us-central1"
-    DEFAULT = US_CENTRAL1
+    US_EAST1 = "us-east1"
+    DEFAULT = US_EAST1
 
 
 class Queue(enum.Enum):
@@ -108,6 +118,13 @@ def defer_execution(
     )
 
 
-def exec_task(payload: TaskPayload) -> typing.Any:
+def exec_task(
+    payload: TaskPayload, request_headers: typing.Dict[str, str]
+) -> typing.Any:
+    # validate request is coming from GCP Tasks
+    for gcp_header in _GCP_TASK_HEADERS:
+        if gcp_header not in request_headers:
+            raise ValueError("Invalid GCP Task request")
+
     func = getattr(importlib.import_module(payload.module), payload.function)
     return func(**payload.kwargs)

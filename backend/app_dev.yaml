@@ -1,3 +1,0 @@
-runtime: python37
-env: standard
-entrypoint: uvicorn main:app --port $PORT --reload

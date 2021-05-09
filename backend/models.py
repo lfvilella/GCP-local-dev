@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import uuid
 import typing
@@ -22,7 +24,7 @@ class ItemNdb(ndb.Model):
         return str(uuid.uuid4())
 
     @classmethod
-    def get_by_id(cls, id_, *args, **kwargs) -> ndb.Model:
+    def get_by_id(cls, id_, *args, **kwargs) -> ItemNdb:
         return super().get_by_id(str(id_), *args, **kwargs)
 
 
@@ -37,5 +39,12 @@ class ItemDetailPyd(ItemCreatePyd):
     created_at: datetime.datetime
 
     @classmethod
-    def load_from_ndb(cls, item: ItemNdb) -> "ItemDetailPyd":
+    def load_from_ndb(cls, item: ItemNdb) -> typing.List[ItemDetailPyd]:
         return ItemDetailPyd(id=item.key.id(), **item.to_dict())
+
+
+class ItemFiltersPyd(pydantic.BaseModel):
+    name_startswith: typing.Optional[str]
+    is_offer: typing.Optional[bool]
+    min_price: typing.Optional[float]
+    max_price: typing.Optional[float]

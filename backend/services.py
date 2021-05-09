@@ -22,6 +22,16 @@ def _generate_csv():
     )
 
 
+def count_items():
+    total_items = models.ItemNdb.query().count()
+    doc_ref = gcp_utils.firestore.DB.collection("summary").document(
+        "total_items"
+    )
+    doc_ref.set(
+        {"total_items": total_items, "updated_at": datetime.datetime.utcnow()}
+    )
+
+
 def _update_realtime_db(item_id: models.ItemNdb.TID):
     item = models.ItemNdb.get_by_id(item_id)
     doc_ref = gcp_utils.firestore.DB.collection("items").document(item.key.id())
@@ -55,11 +65,41 @@ def get_item(
         return models.ItemDetailPyd.load_from_ndb(item)
 
 
-def get_all_items() -> typing.List[models.ItemDetailPyd]:
-    items = []
-    for item_ndb in models.ItemNdb.query().fetch():
-        items.append(models.ItemDetailPyd.load_from_ndb(item_ndb))
+def filter_items(
+    filters: typing.Optional[models.ItemFiltersPyd] = None,
+) -> typing.List[models.ItemDetailPyd]:
+    filters = filters or models.ItemFiltersPyd()
+
+    query = models.ItemNdb.query()
+
+    if filters.name_startswith is not None:
+        query = query.filter(models.ItemNdb.name >= filters.name_startswith)
+
+    if filters.is_offer is not None:
+        query = query.filter(models.ItemNdb.is_offer == filters.is_offer)
+
+    if filters.min_price is not None:
+        query = query.filter(models.ItemNdb.price >= filters.min_price)
+
+    if filters.max_price is not None:
+        query = query.filter(models.ItemNdb.price < filters.max_price)
+
+    items = [
+        models.ItemDetailPyd.load_from_ndb(item_ndb)
+        for item_ndb in query.fetch()
+    ]
     return items
+
+
+def get_offers_in_price_range(
+    min_price: typing.Optional[float] = None,
+    max_price: typing.Optional[float] = None,
+) -> typing.List[models.ItemDetailPyd]:
+    return filter_items(
+        models.ItemFiltersPyd(
+            is_offer=True, min_price=min_price, max_price=max_price
+        )
+    )
 
 
 def list_all_cloud_storage_files() -> typing.List[str]:
