@@ -1,0 +1,5 @@
+#https://cloud.google.com/appengine/docs/standard/python/config/cronref#schedule_format
+cron:
+  - description: "items count"
+    url: /_internal/items/count
+    schedule: every 1 hours

@@ -22,6 +22,16 @@ def _generate_csv():
     )
 
 
+def count_items():
+    total_items = models.ItemNdb.query().count()
+    doc_ref = gcp_utils.firestore.DB.collection("summary").document(
+        "total_items"
+    )
+    doc_ref.set(
+        {"total_items": total_items, "updated_at": datetime.datetime.utcnow()}
+    )
+
+
 def _update_realtime_db(item_id: models.ItemNdb.TID):
     item = models.ItemNdb.get_by_id(item_id)
     doc_ref = gcp_utils.firestore.DB.collection("items").document(item.key.id())

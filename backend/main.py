@@ -89,9 +89,19 @@ async def gcs_file(bucket_name: str, filename: str):
     return response
 
 
+@app.get(
+    "/_internal/items/count",
+    dependencies=[ndb_dependecy],
+    include_in_schema=False,
+)
+async def count_items():
+    services.count_items()
+
+
 @app.post(
     gcp_utils.tasks.TASK_EXEC_HANDLER,
     dependencies=[ndb_dependecy],
+    include_in_schema=False,
 )
 async def tesks_exec(
     payload: gcp_utils.tasks.TaskPayload, request: fastapi.Request

@@ -48,9 +48,9 @@ gcp-connect: start ## Connect to the GCP project
 	@docker-compose exec gcp-deploy gcloud init
 
 gcp-deploy: start ## Deploy source code to GCP
-	@docker-compose exec gcp-deploy gcloud app deploy
+	@docker-compose exec gcp-deploy gcloud app deploy queue.yaml index.yaml app.yaml cron.yaml
 
 gcp-browse: start ## Get the URL to your project on GCP
-	@docker-compose exec gcp-deploy gcloud app deploy
+	@docker-compose exec gcp-deploy gcloud app browse
 
 .DEFAULT_GOAL := help
