@@ -17,7 +17,7 @@ ndb_dependecy = fastapi.Depends(gcp_utils.datastore.ndb_context)
 
 @app.get("/")
 async def hello():
-    return {"msg": "hello"}
+    return {"msg": "Hello, checkout /docs for more features."}
 
 
 @app.post(
@@ -48,8 +48,24 @@ async def item_detail(item_id: models.ItemNdb.TID):
     response_model=typing.List[models.ItemDetailPyd],
     dependencies=[ndb_dependecy],
 )
-async def item_list():
-    return services.get_all_items()
+async def item_list(
+    qs: models.ItemFiltersPyd = fastapi.Depends(models.ItemFiltersPyd),
+):
+    return services.filter_items(qs)
+
+
+@app.get(
+    "/items/offers/{min_price}/to/{max_price}",
+    response_model=typing.List[models.ItemDetailPyd],
+    dependencies=[ndb_dependecy],
+)
+async def item_offers(
+    min_price: typing.Optional[float],
+    max_price: typing.Optional[float],
+):
+    return services.get_offers_in_price_range(
+        min_price=min_price, max_price=max_price
+    )
 
 
 @app.get("/gcs-files", response_model=typing.List[str])
@@ -77,14 +93,16 @@ async def gcs_file(bucket_name: str, filename: str):
     gcp_utils.tasks.TASK_EXEC_HANDLER,
     dependencies=[ndb_dependecy],
 )
-async def tesks_exec(payload: gcp_utils.tasks.TaskPayload):
-    gcp_utils.tasks.exec_task(payload)
-
-
-@app.get("/app-env")
-def app_env():
-    return {"SERVER_SOFTWARE": os.getenv("SERVER_SOFTWARE", "")}
+async def tesks_exec(
+    payload: gcp_utils.tasks.TaskPayload, request: fastapi.Request
+):
+    gcp_utils.tasks.exec_task(payload, request.headers)
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080, debug=True, reload=True)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8080")),
+        debug=True,
+    )

@@ -1,3 +1,15 @@
-runtime: python37
+runtime: python39
 env: standard
 entrypoint: uvicorn main:app --port $PORT
+
+handlers:
+
+- url: /_internal/.*
+  script: auto
+  secure: always
+  login: admin
+
+- url: /.*
+  script: auto
+  secure: always
+  redirect_http_response_code: 301

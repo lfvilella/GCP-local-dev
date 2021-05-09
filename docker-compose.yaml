@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   datastore:
-    build:
-      dockerfile: sdk.Dockerfile
-      context: ./docker
+    image: google/cloud-sdk:338.0.0
     environment:
       - CLOUDSDK_CORE_PROJECT=${GCP_PROJECT:-test}
     ports:
@@ -97,10 +95,20 @@ services:
  
   backend:
     build:
-      dockerfile: sdk.Dockerfile
-      context: ./docker
+      dockerfile: docker/backend.Dockerfile
+      context: .
     environment:
       - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:-test}
+      - GAE_SERVICE=default
+      - GAE_VERSION=20990101t132058
+      - GAE_INSTANCE=fake-instance-id
+      - GAE_ENV=localdev
+      - GAE_RUNTIME=python37
+      - GAE_MEMORY_MB=128
+      - DATASTORE_EMULATOR_HOST=datastore-host:8081
+      - FIRESTORE_EMULATOR_HOST=firebase-host:9002
+      - CLOUD_TASKS_EMULATOR_HOST=cloud-tasks-host:8123
+      - STORAGE_EMULATOR_HOST=http://cloud-storage-proxy-host
     depends_on:
       - datastore
       - cloud-storage-proxy
@@ -111,26 +119,24 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./docker/data:/data
     working_dir: /app
-    command: [
-      "dev_appserver.py",
-      "app_dev.yaml",
-      "--application=${GCP_PROJECT:-test}",
-      "--host=0.0.0.0",
-      "--port=8080",
-      "--admin_host=0.0.0.0",
-      "--admin_port=8000",
-      "--enable_console",
-      "--enable_host_checking=False",
-      "--env_var=DATASTORE_EMULATOR_HOST=datastore-host:8081",
-      "--env_var=STORAGE_EMULATOR_HOST=http://cloud-storage-proxy-host",
-      "--env_var=FIRESTORE_EMULATOR_HOST=firebase-host:9002",
-      "--env_var=CLOUD_TASKS_EMULATOR_HOST=cloud-tasks-host:8123",
-    ] 
+    stdin_open: true
+    tty: true
+    command: ${BACKEND_COMMAND:-uvicorn main:app --port=8080 --host=0.0.0.0 --reload}
     networks:
       localnet:
         aliases:
           - "backend-host"
- 
+
+  gcp-deploy:
+    image: google/cloud-sdk:338.0.0
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: "/bin/bash"
+
 networks:
   localnet:
