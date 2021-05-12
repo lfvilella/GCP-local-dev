@@ -27,8 +27,10 @@ Run `make help` in order to get the available commands
 
 Once the project is running check out http://localhost:8080/docs and play with the avaliable APIs.
 
-![localhost_8080_docs(iPad Pro)](https://user-images.githubusercontent.com/45940140/118046083-3224e880-b34f-11eb-9b06-1bd43a2d1c4a.png)
-
 ![create_item](https://user-images.githubusercontent.com/45940140/118045846-db1f1380-b34e-11eb-9dc4-ef8a9ec39f5b.gif)
 
+## Deploying to GCP
 
+    $ make gcp-connect
+    $ make gcp-deploy
+    $ gcp-browse
