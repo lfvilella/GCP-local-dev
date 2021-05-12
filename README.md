@@ -20,6 +20,10 @@ The project structure consists in:
 - [services.py](backend/services.py) for the business rules
 - [gcp_utils](backend/gcp_utils/) a package with helper methods related to Google Cloud Patform products
 
+List of APIs:
+
+![image](https://user-images.githubusercontent.com/45940140/118047939-e3c51900-b351-11eb-938a-98ea1ae6862c.png)
+
 ## Running the project locally
 
 At the first time running the project run the command:
