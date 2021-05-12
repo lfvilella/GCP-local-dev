@@ -15,9 +15,9 @@ app = fastapi.FastAPI()
 ndb_dependecy = fastapi.Depends(gcp_utils.datastore.ndb_context)
 
 
-@app.get("/")
-async def hello():
-    return {"msg": "Hello, checkout /docs for more features."}
+@app.get("/", include_in_schema=False)
+async def home():
+    return fastapi.responses.RedirectResponse("/docs")
 
 
 @app.post(
