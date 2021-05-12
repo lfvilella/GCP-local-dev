@@ -14,12 +14,21 @@ This project demonstrates how to work GCP products on dev env all offline withou
 
 At the first time running the project run the command:
 
-        $ make build
+    $ make build
 
-Then you can start the services running:
+Then you can start and stop the local dev running:
 
-        $ make up
+    $ make up
+    $ make down
 
-To stop the local dev run:
+Run `make help` in order to get the available commands
 
-        $ make down
+    $ make help
+
+Once the project is running check out http://localhost:8080/docs and play with the avaliable APIs.
+
+![localhost_8080_docs(iPad Pro)](https://user-images.githubusercontent.com/45940140/118046083-3224e880-b34f-11eb-9b06-1bd43a2d1c4a.png)
+
+![create_item](https://user-images.githubusercontent.com/45940140/118045846-db1f1380-b34e-11eb-9dc4-ef8a9ec39f5b.gif)
+
+
