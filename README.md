@@ -10,6 +10,16 @@ This demo project demonstrating how to work GCP products using Python in dev env
 - [Cloud Tasks](https://cloud.google.com/tasks)
 - [Cloud Scheduler](https://cloud.google.com/scheduler)
 
+## The project
+
+This is a very basic project where the `POST /item` creates an Item in the Datastore, then schedule backgroud Cloud Tasks to update Firestore and generate a CSV that is uploaded to Cloud Storage.
+
+The project structure consists in:
+
+- [main.py](backend/main.py) where the HTTP handlers for the endpoints are located
+- [services.py](backend/services.py) for the business rules
+- [gcp_utils](backend/gcp_utils/) a package with helper methods related to Google Cloud Patform products
+
 ## Running the project locally
 
 At the first time running the project run the command:
