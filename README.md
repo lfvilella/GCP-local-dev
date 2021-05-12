@@ -9,3 +9,17 @@ This project demonstrates how to work GCP products on dev env all offline withou
 - [Firestore](https://cloud.google.com/firestore)
 - [Cloud Tasks](https://cloud.google.com/tasks)
 - [Cloud Scheduler](https://cloud.google.com/scheduler)
+
+## Running the project locally
+
+At the first time running the project run the command:
+
+  $ make build
+
+Then you can start the services running:
+
+  $ make up
+
+To stop the local dev run:
+
+  $ make down
