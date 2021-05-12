@@ -14,12 +14,12 @@ This project demonstrates how to work GCP products on dev env all offline withou
 
 At the first time running the project run the command:
 
-  $ make build
+        $ make build
 
 Then you can start the services running:
 
-  $ make up
+        $ make up
 
 To stop the local dev run:
 
-  $ make down
+        $ make down
