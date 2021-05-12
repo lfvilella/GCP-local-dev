@@ -1,6 +1,6 @@
 # Google Cloud Platform Local Development 
 
-This project demonstrates how to work GCP products on dev env all offline without need to internet.
+This demo project demonstrating how to work GCP products using Python in dev env offline without need of internet.
 
 ## You will find examples of using:
 
